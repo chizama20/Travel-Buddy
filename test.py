@@ -1,86 +1,89 @@
 import requests
-import time
+import json
 
 # Amadeus API credentials
-API_KEY = "GwyuqTTGWbwt9nqV6IOr3GkDazPQrjAi"
-API_SECRET = "akLIj4yQGt765zxg"
+CLIENT_ID = "m1UsydbjkM9DCi66OxAR24HEYgNZgiB3"  # Replace with your Amadeus client ID
+CLIENT_SECRET = "Im6ObXAp4piw4ZAz"  # Replace with your Amadeus client secret
+AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
+FLIGHT_OFFERS_URL = "https://test.api.amadeus.com/v2/shopping/flight-offers"
 
-def parse_and_display_flights(flight_data):
-    if not flight_data or "data" not in flight_data:
-        print("No flight offers available.")
-        return
-
-    print(f"Total Offers Found: {len(flight_data['data'])}")
-    for offer in flight_data['data']:
-        print("\n" + "=" * 40)
-        print(f"Flight Offer ID: {offer['id']}")
-        
-        # Price information
-        price = offer["price"]
-        print(f"Price: {price['grandTotal']} {price['currency']}")
-        
-        # Itinerary details
-        for itinerary_index, itinerary in enumerate(offer["itineraries"], start=1):
-            print(f"\nItinerary {itinerary_index}: Duration - {itinerary['duration']}")
-            for segment_index, segment in enumerate(itinerary["segments"], start=1):
-                print(f"  Segment {segment_index}:")
-                print(f"    Flight: {segment['carrierCode']}{segment['number']}")
-                print(f"    Departure: {segment['departure']['iataCode']} at {segment['departure']['at']}")
-                print(f"    Arrival: {segment['arrival']['iataCode']} at {segment['arrival']['at']}")
-                print(f"    Duration: {segment['duration']}")
-                print(f"    Aircraft: {segment['aircraft']['code']}")
-
-        # Traveler pricing (optional, for more detail)
-        if "travelerPricings" in offer:
-            print("\nTraveler Pricing:")
-            for traveler in offer["travelerPricings"]:
-                print(f"  Type: {traveler['travelerType']} | Fare: {traveler['fareOption']}")
-                traveler_price = traveler["price"]
-                print(f"    Total Price: {traveler_price['total']} {traveler_price['currency']}")
-        
-        print("=" * 40)
-
-
-# Example use
-if __name__ == "__main__":
-    # Assume `flight_data` is the JSON response from the API
-    flight_data = {
-        "meta": {"count": 30},
-        "data": [
-            {
-                "id": "1",
-                "price": {"grandTotal": "145.76", "currency": "EUR"},
-                "itineraries": [
-                    {
-                        "duration": "PT8H25M",
-                        "segments": [
-                            {
-                                "carrierCode": "F9",
-                                "number": "4206",
-                                "departure": {"iataCode": "ONT", "at": "2025-02-01T20:35:00"},
-                                "arrival": {"iataCode": "LAS", "at": "2025-02-01T21:59:00"},
-                                "duration": "PT1H24M",
-                                "aircraft": {"code": "321"},
-                            },
-                            {
-                                "carrierCode": "F9",
-                                "number": "3238",
-                                "departure": {"iataCode": "LAS", "at": "2025-02-01T23:54:00"},
-                                "arrival": {"iataCode": "JFK", "at": "2025-02-02T08:00:00"},
-                                "duration": "PT5H6M",
-                                "aircraft": {"code": "32Q"},
-                            },
-                        ],
-                    }
-                ],
-                "travelerPricings": [
-                    {
-                        "travelerType": "ADULT",
-                        "fareOption": "STANDARD",
-                        "price": {"total": "145.76", "currency": "EUR"},
-                    }
-                ],
-            }
-        ],
+# Function to fetch access token
+def get_access_token(client_id, client_secret):
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
     }
-    parse_and_display_flights(flight_data)
+    
+    response = requests.post(AUTH_URL, headers=headers, data=data)
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        print(f"Error obtaining access token: {response.status_code} - {response.json()}")
+        return None
+
+# Function to fetch flight offers
+def fetch_flight_offers(access_token, origin, destination, departure_date, adults):
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    params = {
+        "originLocationCode": origin,
+        "destinationLocationCode": destination,
+        "departureDate": departure_date,
+        "adults": adults,
+        "nonStop": "false",  # Pass as a string
+        "max": 5  # Limit the number of results
+    }
+    
+    response = requests.get(FLIGHT_OFFERS_URL, headers=headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching flight offers: {response.status_code} - {response.text}")
+        return None
+
+# Function to parse and display flight offers
+def display_flight_offers(data):
+    if not data or "data" not in data:
+        print("No flight offers found.")
+        return
+    
+    for index, offer in enumerate(data["data"], start=1):
+        print(f"\nFlight Offer {index}:")
+        itinerary = offer["itineraries"][0]
+        price = offer["price"]["total"]
+        
+        print(f"  Price: {price} {offer['price']['currency']}")
+        print(f"  Duration: {itinerary['duration']}")
+        
+        for segment in itinerary["segments"]:
+            departure = segment["departure"]
+            arrival = segment["arrival"]
+            print(f"    Flight: {segment['carrierCode']}{segment['number']}")
+            print(f"      From: {departure['iataCode']} at {departure['at']}")
+            print(f"      To: {arrival['iataCode']} at {arrival['at']}")
+            print(f"      Aircraft: {segment['aircraft']['code']}")
+        print("-" * 50)
+
+# Main function
+if __name__ == "__main__":
+    # Get user input for flight search
+    print("Welcome to the Flight Search Tool!")
+    origin = input("Enter origin airport code (e.g., LAX): ").strip().upper()
+    destination = input("Enter destination airport code (e.g., JFK): ").strip().upper()
+    departure_date = input("Enter departure date (YYYY-MM-DD): ").strip()
+    adults = int(input("Enter the number of adults (1 or more): ").strip())
+
+    print("\nFetching access token...")
+    access_token = get_access_token(CLIENT_ID, CLIENT_SECRET)
+    
+    if access_token:
+        print("Access token obtained successfully!")
+        print("\nFetching flight offers...\n")
+        flight_data = fetch_flight_offers(access_token, origin, destination, departure_date, adults)
+        display_flight_offers(flight_data)
+    else:
+        print("Failed to retrieve access token. Exiting...")
