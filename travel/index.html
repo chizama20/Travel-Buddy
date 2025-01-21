@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Search</title>
+</head>
+<body>
+    <h1>Flight Search</h1>
+
+    <!-- Error message -->
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <!-- Search form -->
+    <form method="post">
+        <label for="origin">Origin Airport Code:</label>
+        <input type="text" id="origin" name="origin" required>
+        <br>
+        <label for="destination">Destination Airport Code:</label>
+        <input type="text" id="destination" name="destination" required>
+        <br>
+        <label for="departure_date">Departure Date (YYYY-MM-DD):</label>
+        <input type="date" id="departure_date" name="departure_date" required>
+        <br>
+        <label for="adults">Number of Adults:</label>
+        <input type="number" id="adults" name="adults" min="1" required>
+        <br><br>
+        <button type="submit">Search Flights</button>
+    </form>
+
+    <!-- Display flight offers -->
+    {% if flight_offers %}
+    <h2>Flight Offers</h2>
+    <ul>
+        {% for offer in flight_offers %}
+        <li>
+            <strong>Price:</strong> {{ offer["price"]["total"] }} {{ offer["price"]["currency"] }}
+            <ul>
+                {% for itinerary in offer["itineraries"] %}
+                <li>
+                    <strong>Duration:</strong> {{ itinerary["duration"] }}
+                    <ul>
+                        {% for segment in itinerary["segments"] %}
+                        <li>
+                            <strong>Flight:</strong> {{ segment["carrierCode"] }}{{ segment["number"] }}
+                            <br>
+                            <strong>From:</strong> {{ segment["departure"]["iataCode"] }} at {{ segment["departure"]["at"] }}
+                            <br>
+                            <strong>To:</strong> {{ segment["arrival"]["iataCode"] }} at {{ segment["arrival"]["at"] }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</body>
+</html>

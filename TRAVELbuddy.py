@@ -34,8 +34,8 @@ def fetch_flight_offers(access_token, origin, destination, departure_date, adult
         "destinationLocationCode": destination,
         "departureDate": departure_date,
         "adults": adults,
-        "nonStop": "false",  # Pass as a string
-        "max": 5  # Limit the number of results
+        "nonStop": "false",  
+        "max": 5  
     }
     
     response = requests.get(FLIGHT_OFFERS_URL, headers=headers, params=params)
